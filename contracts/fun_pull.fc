@@ -1,0 +1,118 @@
+#include "imports/stdlib.fc";
+
+const int ROUND = 0xffffffffffffffff000000000000000000000000000000000000000000000000;
+const int DECIMAL = 0x0000000000000000ff0000000000000000000000000000000000000000000000;
+const int TIMESTAMP = 0x000000000000000000ffffffffffffffff000000000000000000000000000000;
+const int PRICE = 0x0000000000000000000000000000000000ffffffffffffffffffffffff000000;
+const int HCC = 0x0000000000000000000000000000000000000000000000000000000000ff0000;
+const int MAX_DECIMAL = 18;
+
+(cell, cell, cell, cell) load_data() inline {
+    slice ds = get_data().begin_parse();
+    return (
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref()
+    );
+}
+
+() save_data(cell priceFeed, cell derivedData, cell derivedPair) impure inline{
+    cell my_dict = new_dict();
+    set_data(
+        begin_cell()
+        .store_ref(priceFeed) 
+        .store_ref(derivedData)
+        .store_ref(derivedPair)
+        .store_ref(my_dict)
+        .end_cell()
+    );
+}
+
+global address supraSValueFeedVerifier;
+global address supraPull;
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+   
+}
+
+() save_restrictedSetSupraStorage(int _tradingPair, slice _bytes) impure inline {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
+    slice key_slice = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
+    ;; slice value_slice = begin_cell().store_bytes(_bytes, 32).end_cell().begin_parse();
+    my_dict = dict_set(my_dict, key_slice, _bytes);
+    set_data(begin_cell().store_ref(my_dict).end_cell());
+}
+
+(slice) save_getRound(int _tradingPair) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
+    slice key_slice = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
+    slice value_slice = key_slice~dict_get(my_dict, 32);
+
+    ;; int value = value_slice.preload_uint(32);
+    value = (value_slice & ROUND) >> 192;
+    return value;
+
+}
+
+(slice) save_getTimestamp(int _tradingPair) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
+    slice key_slice = begin_cell().store_uint(_tradingPair, 32).end_cell().begin_parse();
+    slice value_slice = key_slice~dict_get(my_dict, 32);
+
+    ;; int value = value_slice.preload_uint(32);
+    value = (value_slice & TIMESTAMP);
+    return value;
+}
+
+(int, int, int, int) save_getSValue(int _pairIndex) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
+    slice key_slice = begin_cell().store_uint(_pairIndex, 256).end_cell().begin_parse();
+    slice value_slice = key_slice~dict_get(my_dict, 32);
+    (int price, int timestamp, int decimal, int round) = save_unpackedData(value_slice);
+    return (price, timestamp, decimal, round);
+}
+
+(slice, bool) save_getSvalue(int _pairIndex) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) =  load_data();
+    slice key_slice = begin_cell().store_uint(_pairIndex, 256).end_cell().begin_parse();
+    slice value_slice = key_slice~dict_get(my_dict, 32);
+    ;; int value = value_slice.preload_uint(32);
+    return (value_slice, true);
+}
+
+() save_updateSupraSValueFeedVerifier(address _supraSValueFeedVerifier) impure inline {
+    supraSValueFeedVerifier = _supraSValueFeedVerifier;
+}
+
+() save_updateSupraPull(address _supraPull) impure inline{
+    supraPull = _supraPull;
+}
+
+(int, int, int, int) save_unpackedData(int data) impure inline {
+    return(
+        int(data & PRICE) >> 24,
+        int(data & TIMESTAMP) >> 120,
+        int(data & DECIMAL) >> 184,
+        int(data & ROUND) >> 192
+    );
+}
+
+
+(int) save_scalePrice(int price, int decimal) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair) = load_data();
+    slice s = priceFeed.begin_parse();
+    int decimal = s~load_uint(256);
+    if(decimal == 18){
+        return price;
+    } else {
+        int x = 1;
+        int diff = 18 - decimal;
+        repeat(diff){
+            x = x * 10;
+        }
+        return price * x;
+    }
+}
+
+
