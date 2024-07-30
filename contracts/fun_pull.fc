@@ -7,17 +7,19 @@ const int PRICE = 0x0000000000000000000000000000000000ffffffffffffffffffffffff00
 const int HCC = 0x0000000000000000000000000000000000000000000000000000000000ff0000;
 const int MAX_DECIMAL = 18;
 
-(cell, cell, cell, cell) load_data() inline {
+(cell, cell, cell, cell, slice, slice) load_data() impure {
     slice ds = get_data().begin_parse();
     return (
         ds~load_ref(),
         ds~load_ref(),
         ds~load_ref(),
-        ds~load_ref()
+        ds~load_ref(),
+        ds~load_msg_addr(),
+        ds~load_msg_addr()
     );
 }
 
-() save_data(cell priceFeed, cell derivedData, cell derivedPair) impure inline{
+() save_data(cell priceFeed, cell derivedData, cell derivedPair, slice supraSValueFeedVerifier, slice supraPull) impure {
     cell my_dict = new_dict();
     set_data(
         begin_cell()
@@ -25,82 +27,81 @@ const int MAX_DECIMAL = 18;
         .store_ref(derivedData)
         .store_ref(derivedPair)
         .store_ref(my_dict)
+        .store_slice(supraSValueFeedVerifier)
+        .store_slice(supraPull)
         .end_cell()
     );
 }
 
-global address supraSValueFeedVerifier;
-global address supraPull;
-
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
-   
+   if (in_msg_body.slice_empty?()) {
+    return ();
+   }
+
+   int op = in_msg_body~load_uint(32);
+;;    if(op == 1){
+;;         (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
+;;    }
 }
 
-() save_restrictedSetSupraStorage(int _tradingPair, slice _bytes) impure inline {
-    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
+() save_restrictedSetSupraStorage(int _tradingPair, slice _bytes) impure   {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     slice key_slice = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
-    ;; slice value_slice = begin_cell().store_bytes(_bytes, 32).end_cell().begin_parse();
-    my_dict = dict_set(my_dict, key_slice, _bytes);
+    my_dict = dict_set(my_dict,32, key_slice, _bytes);
     set_data(begin_cell().store_ref(my_dict).end_cell());
 }
 
-(slice) save_getRound(int _tradingPair) impure {
-    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
+(int) save_getRound(int _tradingPair) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     slice key_slice = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
-    slice value_slice = key_slice~dict_get(my_dict, 32);
-
-    ;; int value = value_slice.preload_uint(32);
-    value = (value_slice & ROUND) >> 192;
-    return value;
-
-}
-
-(slice) save_getTimestamp(int _tradingPair) impure {
-    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
-    slice key_slice = begin_cell().store_uint(_tradingPair, 32).end_cell().begin_parse();
-    slice value_slice = key_slice~dict_get(my_dict, 32);
-
-    ;; int value = value_slice.preload_uint(32);
-    value = (value_slice & TIMESTAMP);
+    (slice value_slice, int result) = udict_get?(my_dict,256,_tradingPair);
+    int value = value_slice~load_uint(256);
+    value = (value & ROUND) >> 192;
     return value;
 }
 
-(int, int, int, int) save_getSValue(int _pairIndex) impure {
-    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) = load_data();
-    slice key_slice = begin_cell().store_uint(_pairIndex, 256).end_cell().begin_parse();
-    slice value_slice = key_slice~dict_get(my_dict, 32);
-    (int price, int timestamp, int decimal, int round) = save_unpackedData(value_slice);
-    return (price, timestamp, decimal, round);
+(int) save_getTimestamp(int _tradingPair) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
+    slice key_value = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
+    (slice value_slice, int result) = udict_get?(my_dict,256,_tradingPair);
+    int value = value_slice~load_uint(256);
+    int value = (value & TIMESTAMP) >> 120;
+    return value;
 }
 
-(slice, bool) save_getSvalue(int _pairIndex) impure {
-    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict) =  load_data();
+(slice, int) save_getSvalue(int _pairIndex) impure {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) =  load_data();
     slice key_slice = begin_cell().store_uint(_pairIndex, 256).end_cell().begin_parse();
-    slice value_slice = key_slice~dict_get(my_dict, 32);
-    ;; int value = value_slice.preload_uint(32);
-    return (value_slice, true);
+    (slice value_slice, int result) = udict_get?(my_dict,256,_pairIndex);
+    return (value_slice, result);
 }
 
-() save_updateSupraSValueFeedVerifier(address _supraSValueFeedVerifier) impure inline {
+() save_updateSupraSValueFeedVerifier(slice _supraSValueFeedVerifier) impure  {
+    (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     supraSValueFeedVerifier = _supraSValueFeedVerifier;
 }
 
-() save_updateSupraPull(address _supraPull) impure inline{
+() save_updateSupraPull(slice _supraPull) impure {
+    (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     supraPull = _supraPull;
 }
 
-(int, int, int, int) save_unpackedData(int data) impure inline {
-    return(
-        int(data & PRICE) >> 24,
-        int(data & TIMESTAMP) >> 120,
-        int(data & DECIMAL) >> 184,
-        int(data & ROUND) >> 192
-    );
+(int, int, int, int) save_unpackedData(int data) impure {
+    int price = data & PRICE;
+    int timestamp = data & TIMESTAMP;
+    int decimal = data & DECIMAL;
+    int round = data & ROUND;
+    return (price >> 24, timestamp >> 120, decimal >> 184, round >> 192);
+}
+
+(int, int, int, int) save_getSValue(int _pairIndex) impure {
+    (int price, int timestamp, int decimal, int round) = save_unpackedData(_pairIndex);
+    return (price, timestamp, decimal, round);
 }
 
 
 (int) save_scalePrice(int price, int decimal) impure {
-    (cell priceFeed, cell derivedData, cell derivedPair) = load_data();
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     slice s = priceFeed.begin_parse();
     int decimal = s~load_uint(256);
     if(decimal == 18){
@@ -115,4 +116,49 @@ global address supraPull;
     }
 }
 
+(cell) save_getDerivedSvalue(int pair_id_1, int pair_id_2, int operation) impure  {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
+    slice key_slice1 = begin_cell().store_uint(pair_id_1, 256).end_cell().begin_parse();
+    slice key_slice2 = begin_cell().store_uint(pair_id_2, 256).end_cell().begin_parse();
+    (slice value_slice1, int result1) = udict_get?(my_dict,256,pair_id_1);
+    (slice value_slice2, int result2) = udict_get?(my_dict,256,pair_id_2);
+    int value1 = value_slice1~load_uint(256);
+    int value2 = value_slice2~load_uint(256);
+    (int price_1, int timestamp_1, int decimal_1, int round_1) = save_unpackedData(value1);
+    (int price_2, int timestamp_2, int decimal_2, int round_2) = save_unpackedData(value2);
+    int derivedPrice = 0;
+    if (operation == 0) {
+        if (decimal_1 + decimal_2 > MAX_DECIMAL) {
+            int temp = 1;
+            repeat((decimal_1 + decimal_2) - MAX_DECIMAL) {
+                temp = temp * 10; 
+            }
+            derivedPrice = (price_1 * price_2)/ temp;
+        } 
+        else {
+            int temp = 1;
+            repeat(MAX_DECIMAL - (decimal_1 + decimal_2)) {
+                temp = temp * 10;
+            }
+            derivedPrice = (price_1 * price_2)/ temp;
+        }
+    } elseif (operation == 1) {
+        int temp = 1;
+        repeat(MAX_DECIMAL) {
+            temp = temp * 10;
+        }
+        derivedPrice = (save_scalePrice(price_1,decimal_1) * temp)/(save_scalePrice(price_2,decimal_2));   
+    }
+    
+    slice s = derivedData.begin_parse();
+    int temp = round_1 - round_2;
 
+    cell newDerivedCell = begin_cell()
+                          .store_uint(temp, 256)
+                          .store_uint(derivedPrice, 256)
+                          .store_uint(MAX_DECIMAL, 256)
+                          .end_cell();
+
+    derivedData = newDerivedCell;
+    return derivedData;
+}

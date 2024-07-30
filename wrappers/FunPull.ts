@@ -26,4 +26,6 @@ export class FunPull implements Contract {
             body: beginCell().endCell(),
         });
     }
+
+    
 }
