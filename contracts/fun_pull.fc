@@ -39,9 +39,13 @@ const int MAX_DECIMAL = 18;
     }
 
     int op = in_msg_body~load_uint(32);
-       if(op == 1){
+    cell cell_ref = in_msg_body~load_ref();
+    slice _bytes = cell_ref.begin_parse();
+       if(op == 1) {
             (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
-            
+            int _tradingPair = in_msg_body~load_uint(256);
+            save_restrictedSetSupraStorage(_tradingPair, _bytes);
+            return();
        }
 }
 
@@ -55,6 +59,7 @@ const int MAX_DECIMAL = 18;
 () updateSupraSValueFeedVerifier(slice _supraSValueFeedVerifier) impure  {
     (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     supraSValueFeedVerifier = _supraSValueFeedVerifier;
+    ;; save_data(priceFeed, derivedData, derivedPairs, my_dict, supraSValueFeedVerifier, supraPull);
 }
 
 () updateSupraPull(slice _supraPull) impure {
@@ -62,21 +67,9 @@ const int MAX_DECIMAL = 18;
     supraPull = _supraPull;
 }
 
-(int, int, int, int) save_unpackedData(int data) impure {
-    int price = (data & PRICE) >> 24;
-    int timestamp = (data & TIMESTAMP) >> 120;
-    int decimal = (data & DECIMAL >> 184);
-    int round = (data & ROUND) >> 192;
-    return (price, timestamp, decimal, round);
-}
-
-(int, int, int, int) getSValue(int _pairIndex) impure {
-    (int price, int timestamp, int decimal, int round) = save_unpackedData(_pairIndex);
-    return (price, timestamp, decimal, round);
-}
 
 
-(int) save_scalePrice(int price, int decimal) impure {
+(int) save_scalePrice(int price, int decimal) inline {
     (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     slice s = priceFeed.begin_parse();
     decimal = s~load_uint(256);
@@ -92,7 +85,15 @@ const int MAX_DECIMAL = 18;
     }
 }
 
-(cell) getDerivedSvalue(int pair_id_1, int pair_id_2, int operation) impure  {
+(int, int, int, int) save_unpackedData(int data) inline {
+    int price = (data & PRICE) >> 24;
+    int timestamp = (data & TIMESTAMP) >> 120;
+    int decimal = (data & DECIMAL >> 184);
+    int round = (data & ROUND) >> 192;
+    return (price, timestamp, decimal, round);
+}
+
+(cell) getDerivedSvalue(int pair_id_1, int pair_id_2, int operation) method_id  {
     (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
     slice key_slice1 = begin_cell().store_uint(pair_id_1, 256).end_cell().begin_parse();
     slice key_slice2 = begin_cell().store_uint(pair_id_2, 256).end_cell().begin_parse();
@@ -139,6 +140,10 @@ const int MAX_DECIMAL = 18;
     return derivedData;
 }
 
+(int, int, int, int) getSValue(int _pairIndex) method_id {
+    (int price, int timestamp, int decimal, int round) = save_unpackedData(_pairIndex);
+    return (price, timestamp, decimal, round);
+}
 
 (int) getRound(int _tradingPair) method_id {
     (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
