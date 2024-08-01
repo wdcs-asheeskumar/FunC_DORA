@@ -33,6 +33,23 @@ const int MAX_DECIMAL = 18;
     );
 }
 
+() save_restrictedSetSupraStorage(int _tradingPair, slice _bytes) impure   {
+    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
+    slice key_slice = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
+    my_dict = dict_set(my_dict,256, key_slice, _bytes);
+    set_data(begin_cell().store_ref(my_dict).end_cell());
+}
+
+() updateSupraSValueFeedVerifier(slice _supraSValueFeedVerifier) impure  {
+    (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
+    supraSValueFeedVerifier = _supraSValueFeedVerifier;
+}
+
+() updateSupraPull(slice _supraPull) impure {
+    (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
+    supraPull = _supraPull;
+}
+
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     if (in_msg_body.slice_empty?()) {
         return ();
@@ -46,27 +63,14 @@ const int MAX_DECIMAL = 18;
             int _tradingPair = in_msg_body~load_uint(256);
             save_restrictedSetSupraStorage(_tradingPair, _bytes);
             return();
+       } elseif (op == 2) {
+        slice s = in_msg_body~load_msg_addr();
+        updateSupraSValueFeedVerifier(s);
+       } elseif (op == 3) {
+        slice s = in_msg_body~load_msg_addr();
+        updateSupraPull(s);
        }
 }
-
-() save_restrictedSetSupraStorage(int _tradingPair, slice _bytes) impure   {
-    (cell priceFeed, cell derivedData, cell derivedPair, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
-    slice key_slice = begin_cell().store_uint(_tradingPair, 256).end_cell().begin_parse();
-    my_dict = dict_set(my_dict,256, key_slice, _bytes);
-    set_data(begin_cell().store_ref(my_dict).end_cell());
-}
-
-() updateSupraSValueFeedVerifier(slice _supraSValueFeedVerifier) impure  {
-    (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
-    supraSValueFeedVerifier = _supraSValueFeedVerifier;
-    ;; save_data(priceFeed, derivedData, derivedPairs, my_dict, supraSValueFeedVerifier, supraPull);
-}
-
-() updateSupraPull(slice _supraPull) impure {
-    (cell priceFeed, cell derivedData, cell derivedPairs, cell my_dict, slice supraSValueFeedVerifier, slice supraPull) = load_data();
-    supraPull = _supraPull;
-}
-
 
 
 (int) save_scalePrice(int price, int decimal) inline {
