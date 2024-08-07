@@ -1,5 +1,316 @@
 #include "imports/stdlib.fc";
 
-() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+(cell, cell, cell, cell, cell, cell, cell, cell, slice) load_data () impure {
+    slice ds = get_data().begin_parse();
+    return(
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_ref(),
+        ds~load_msg_addr()
+    );
+}
 
+() save_data(
+    cell vote, 
+    cell minBlock, 
+    cell minTxn, 
+    cell minBatch, 
+    cell signedCoherentCluster, 
+    cell coherentCluster, 
+    cell origin, 
+    slice supraSValueFeed
+) impure {
+    cell pubKey = new_dict();
+    set_data(begin_cell()
+            .store_ref(vote)
+            .store_ref(minBlock)
+            .store_ref(minTxn)
+            .store_ref(minBatch)
+            .store_ref(signedCoherentCluster)
+            .store_ref(coherentCluster)
+            .store_ref(origin)
+            .store_ref(pubKey)
+            .store_slice(supraSValueFeed)
+            .end_cell()
+    );
+}
+
+(int) hashTxn(cell txn) impure {
+   (
+    cell vote, 
+    cell minBlock, 
+    cell minTxn, 
+    cell minBatch, 
+    cell signedCoherentCluster, 
+    cell coherentCluster, 
+    cell origin, 
+    cell pubKey, 
+    slice supraSValueFeed
+   ) = load_data();
+   
+   slice s = minTxn.begin_parse();
+   slice clusterHashes = s~load_msg_addr();
+   slice sender = s~load_msg_addr();
+   slice protocol = s~load_msg_addr();
+   slice tx_sub_type = s~load_msg_addr();
+   cell c = begin_cell()
+            .store_slice(clusterHashes)
+            .store_slice(sender)
+            .store_slice(protocol)
+            .store_slice(tx_sub_type)
+            .end_cell();
+   int hash = cell_hash(c);
+   return hash;
+}
+
+(int) hashBatch(cell batch) impure {
+    (
+        cell vote, 
+        cell minBlock, 
+        cell minTxn, 
+        cell minBatch, 
+        cell signedCoherentCluster, 
+        cell coherentCluster, 
+        cell origin, 
+        cell pubKey, 
+        slice supraSValueFeed
+    ) = load_data();
+
+    slice s = minBatch.begin_parse();
+    slice txnsHash = s~load_msg_addr();
+    slice protocol = s~load_msg_addr();
+    cell c = begin_cell().store_slice(txnsHash).store_slice(protocol).end_cell();
+    int hash = cell_hash(c);
+    return hash;
+}
+
+(int) hashVote(cell vote) impure {
+    (
+        cell vote, 
+        cell minBlock, 
+        cell minTxn, 
+        cell minBatch, 
+        cell signedCoherentCluster, 
+        cell coherentCluster, 
+        cell origin, 
+        cell pubKey, 
+        slice supraSValueFeed
+    ) = load_data();
+    slice s = vote.begin_parse();
+    slice s_1 = s~load_ref().begin_parse();
+    int round = s_1~load_uint(64);
+    int timestamp = s_1~load_uint(128);
+    slice author = s_1~load_msg_addr();
+    slice qcHash = s_1~load_msg_addr();
+    slice batchHashes = s_1~load_msg_addr();
+    slice roundLE = s~load_msg_addr();
+    cell c = begin_cell()
+             .store_uint(round,64)
+             .store_uint(timestamp,128)
+             .store_slice(author)
+             .store_slice(qcHash)
+             .store_slice(batchHashes)
+             .store_slice(roundLE)
+             .end_cell();
+
+    int hash = cell_hash(c);
+    return hash;
+}
+
+() initialize(int _domain, slice _supraSValueFeedStorage, cell _publicKey, int _blsPreCompileGasCost) impure {
+    (
+        cell vote, 
+        cell minBlock, 
+        cell minTxn, 
+        cell minBatch, 
+        cell signedCoherentCluster, 
+        cell coherentCluster, 
+        cell origin, 
+        cell pubKey, 
+        slice supraSValueFeed
+    ) = load_data();
+
+    slice s = _publicKey.begin_parse();
+    slice pubKey1 = s~load_msg_addr();
+    slice pubKey2 = s~load_msg_addr();
+    slice pubKey3 = s~load_msg_addr();
+    slice pubKey4 = s~load_msg_addr();
+    slice key_pair1 = begin_cell().store_uint(1,256).end_cell().begin_parse();
+    pubKey = dict_set(pubKey, 256, key_pair1, pubKey1);
+    set_data(begin_cell().store_ref(pubKey).end_cell());
+    slice key_pair2 = begin_cell().store_uint(2,256).end_cell().begin_parse();
+    pubKey = dict_set(pubKey, 256, key_pair1, pubKey2);
+    slice key_pair3 = begin_cell().store_uint(3,256).end_cell().begin_parse();
+    pubKey = dict_set(pubKey, 256, key_pair1, pubKey2);
+    slice key_pair4 = begin_cell().store_uint(4,256).end_cell().begin_parse();
+    pubKey = dict_set(pubKey, 256, key_pair1, pubKey2);
+}
+
+;; tuple empty_tuple();
+
+
+
+(slice) packData(int _pair, int _round, int _decimals, int _time, int _price) impure {
+    int r = _round << 192;
+    r = r | _decimals << 184;
+    r = r | _time << 120;
+    r = r | _price << 24;
+    cell c = begin_cell().store_uint(r, 256).end_cell();
+    return c.begin_parse();
+}
+
+(tuple) store_key() impure {
+    (
+        cell vote,
+        cell minBlock,
+        cell minTxn,
+        cell minBatch,
+        cell signedCoherentCluster,
+        cell coherentCluster,
+        cell orgin,
+        cell pubKey,
+        slice supraSValueFeed
+    ) = load_data();
+
+    slice s = pubKey.begin_parse();
+    int s_key1 = s~load_uint(256);
+    int s_key2 = s~load_uint(256);
+    int s_key3 = s~load_uint(256);
+    int s_key4 = s~load_uint(256);
+    tuple t = empty_tuple();
+    t~tpush(s_key1);
+    t~tpush(s_key2);
+    t~tpush(s_key3);
+    t~tpush(s_key4);
+    return t;
+
+}
+
+;; () updatePublicKey2(int committee_id, cell publicKey, int new_committee) impure {
+;;     (
+;;         cell vote, 
+;;         cell minBlock, 
+;;         cell minTxn, 
+;;         cell minBatch, 
+;;         cell signedCoherentCluster, 
+;;         cell coherentCluster, 
+;;         cell origin, 
+;;         cell pubKey, 
+;;         slice supraSValueFeed
+;;         ) = load_data();
+        
+;;         tuple t = store_key();
+;;         (slice s, int result1) = udict_get?(pubKey,256,1); ;; fetching data from index 1
+;;         int value_s = s~load_uint(256);
+;;         if(new_committee & value_s == 0) {                  ;; taking & operation between new_committee and slice s
+;;             slice key_slice = begin_cell().store_uint(committee_id, 256).end_cell().begin_parse();             ;; storing the value of committee id as key and public key tuple as value in the dict
+;;             pubKey = dict_set(pubKey,256,key_slice,t);
+;;         }
+;; }
+
+() updatePublicKey(cell _publicKey) impure {
+       (
+        cell vote, 
+        cell minBlock, 
+        cell minTxn, 
+        cell minBatch, 
+        cell signedCoherentCluster, 
+        cell coherentCluster, 
+        cell origin, 
+        cell pubKey, 
+        slice supraSValueFeed
+        ) = load_data();
+
+        pubKey = _publicKey;
+} 
+
+(cell) checkPublicKey() method_id {
+    (
+        cell vote, 
+        cell minBlock, 
+        cell minTxn, 
+        cell minBatch, 
+        cell signedCoherentCluster, 
+        cell coherentCluster, 
+        cell origin, 
+        cell pubKey, 
+        slice supraSValueFeed
+    ) = load_data();
+
+    return pubKey;
+}
+
+;; () requireHashVerified_V1(slice message, ) impure {
+
+;; }
+
+() requireVoteVerified(cell vote) impure {
+   (
+    cell vote, 
+    cell minBlock, 
+    cell minTxn, 
+    cell minBatch, 
+    cell signedCoherentCluster, 
+    cell origin, 
+    cell pubKey, 
+    slice supraSValueFeed
+    ) = load_data();
+
+    int value = hashVote(vote);
+
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if(in_msg_body.slice_empty?()) {
+        return();
+    }
+
+    int op = in_msg_body~load_uint(32);
+
+    if(op == 1) {
+        (
+            cell vote, 
+            cell minBlock, 
+            cell minTxn, 
+            cell minBatch, 
+            cell signedCoherentCluster,  
+            cell coherentCluster,  
+            cell origin, 
+            cell pubKey, 
+            slice supraSValueFeed
+        ) = load_data();
+
+        int _domain = in_msg_body~load_uint(32);
+        int _blsPrecompileGasCost = in_msg_body~load_uint(256);
+        initialize(_domain, supraSValueFeed, pubKey, _blsPrecompileGasCost);
+    } 
+    
+    elseif(op == 2) {
+        int _pair = in_msg_body~load_uint(256);
+        int _round = in_msg_body~load_uint(256);
+        int _decimals = in_msg_body~load_uint(256);
+        int _time = in_msg_body~load_uint(256);
+        int _price = in_msg_body~load_uint(256);
+        slice s = packData(_pair,_round,_decimals,_time,_price);
+    } elseif(op == 3) {
+        cell s = in_msg_body~load_ref();
+        (
+            cell vote, 
+            cell minBlock, 
+            cell minTxn, 
+            cell minBatch, 
+            cell signedCoherentCluster, 
+            cell coherentCluster, 
+            cell origin, 
+            cell pubKey, 
+            slice supraSValueFeed
+        ) = load_data();
+
+        updatePublicKey(s);
+    }
 }

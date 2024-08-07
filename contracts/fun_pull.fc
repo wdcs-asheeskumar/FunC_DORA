@@ -103,8 +103,10 @@ const int MAX_DECIMAL = 18;
     slice key_slice2 = begin_cell().store_uint(pair_id_2, 256).end_cell().begin_parse();
     (slice value_slice1, int result1) = udict_get?(my_dict,256,pair_id_1);
     (slice value_slice2, int result2) = udict_get?(my_dict,256,pair_id_2);
+
     int value1 = value_slice1~load_uint(256);
     int value2 = value_slice2~load_uint(256);
+    
     (int price_1, int timestamp_1, int decimal_1, int round_1) = save_unpackedData(value1);
     (int price_2, int timestamp_2, int decimal_2, int round_2) = save_unpackedData(value2);
     int derivedPrice = 0;

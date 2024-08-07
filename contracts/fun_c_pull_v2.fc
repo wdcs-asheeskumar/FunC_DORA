@@ -157,7 +157,7 @@
 }
 
 () verifyOracleProof(slice _bytes) impure {
-
+    
 }
 
 (slice) checkSupraSValueVerifier() method_id {
