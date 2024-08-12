@@ -164,7 +164,7 @@
     return c.begin_parse();
 }
 
-(tuple) store_key() impure {
+() store_key(cell publicKey) impure {
     (
         cell vote,
         cell minBlock,
@@ -176,42 +176,16 @@
         cell pubKey,
         slice supraSValueFeed
     ) = load_data();
-
-    slice s = pubKey.begin_parse();
-    int s_key1 = s~load_uint(256);
-    int s_key2 = s~load_uint(256);
-    int s_key3 = s~load_uint(256);
-    int s_key4 = s~load_uint(256);
-    tuple t = empty_tuple();
-    t~tpush(s_key1);
-    t~tpush(s_key2);
-    t~tpush(s_key3);
-    t~tpush(s_key4);
-    return t;
-
+    slice c = publicKey.begin_parse();
+    slice key_1 = c~load_msg_addr();
+    slice key_2 = c~load_msg_addr();
+    slice key_3 = c~load_msg_addr();
+    slice key_4 = c~load_msg_addr();
+    pubKey = idict_set(pubKey,256,1,key_1);
+    pubKey = idict_set(pubKey,256,2,key_2);
+    pubKey = idict_set(pubKey,256,3,key_3);
+    pubKey = idict_set(pubKey,256,4,key_4);
 }
-
-;; () updatePublicKey2(int committee_id, cell publicKey, int new_committee) impure {
-;;     (
-;;         cell vote, 
-;;         cell minBlock, 
-;;         cell minTxn, 
-;;         cell minBatch, 
-;;         cell signedCoherentCluster, 
-;;         cell coherentCluster, 
-;;         cell origin, 
-;;         cell pubKey, 
-;;         slice supraSValueFeed
-;;         ) = load_data();
-        
-;;         tuple t = store_key();
-;;         (slice s, int result1) = udict_get?(pubKey,256,1); ;; fetching data from index 1
-;;         int value_s = s~load_uint(256);
-;;         if(new_committee & value_s == 0) {                  ;; taking & operation between new_committee and slice s
-;;             slice key_slice = begin_cell().store_uint(committee_id, 256).end_cell().begin_parse();             ;; storing the value of committee id as key and public key tuple as value in the dict
-;;             pubKey = dict_set(pubKey,256,key_slice,t);
-;;         }
-;; }
 
 () updatePublicKey(cell _publicKey) impure {
        (
@@ -245,24 +219,71 @@
     return pubKey;
 }
 
-;; () requireHashVerified_V1(slice message, ) impure {
+(int) requireHashVerified_V1(int message, slice signature, int public_key) impure {
+   int result = check_signature(message, signature, public_key);
+   return result;
+}
+
+;; () requireHashVerified_V2(int message, slice signature, int public_key) impure {
 
 ;; }
 
-() requireVoteVerified(cell vote) impure {
+
+() requireVoteVerified(cell vote, slice signature, int public_key) impure {
    (
     cell vote, 
     cell minBlock, 
     cell minTxn, 
     cell minBatch, 
     cell signedCoherentCluster, 
+    cell coherentCluster,
     cell origin, 
     cell pubKey, 
     slice supraSValueFeed
     ) = load_data();
 
     int value = hashVote(vote);
+    requireHashVerified_V1(value, signature, public_key);
+}
 
+() processCluster(slice signature, int public_key, slice sccR) impure {
+    (
+        cell vote, 
+        cell minBlock, 
+        cell minTxn, 
+        cell minBatch, 
+        cell signedCoherentCluster, 
+        cell coherentCluster, 
+        cell origin, 
+        cell pubKey, 
+        slice supraSValueFeed
+    ) = load_data();
+
+    requireVoteVerified(vote,signature,public_key);
+    int batchHash = hashBatch(minBatch);
+    slice s = vote.begin_parse();
+    slice s_1 = s~load_ref().begin_parse();
+    slice batchHashes = s_1~load_msg_addr();
+    int batHsh = batchHashes~load_uint(256);
+    throw_unless(74, batchHash == batHsh);
+
+
+    int txnHash = hashTxn(minTxn);
+    slice minB = minBatch.begin_parse();
+    slice minB_1 = minB~load_msg_addr();
+    int tHash = minB_1~load_uint(256);
+    throw_unless(74, txnHash == tHash);
+
+
+    int sccHash = slice_hash(sccR);
+    
+    slice minTransaction = minTxn.begin_parse();
+    slice minTransaction_1 = minTransaction~load_msg_addr();
+    int minTransHash = minTransaction_1~load_uint(256);
+    throw_unless(74, minTransHash == sccHash);
+    
+    
+    
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -310,7 +331,12 @@
             cell pubKey, 
             slice supraSValueFeed
         ) = load_data();
-
         updatePublicKey(s);
     }
+}
+
+
+() requireHashVerified_V2(slice message, slice signature, int public_key) impure {
+    int msg = slice_hash(message);
+    int result = check_signature(msg,signature,public_key);
 }
