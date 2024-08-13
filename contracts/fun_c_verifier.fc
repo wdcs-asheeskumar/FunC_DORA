@@ -146,9 +146,9 @@
     slice key_pair2 = begin_cell().store_uint(2,256).end_cell().begin_parse();
     pubKey = dict_set(pubKey, 256, key_pair1, pubKey2);
     slice key_pair3 = begin_cell().store_uint(3,256).end_cell().begin_parse();
-    pubKey = dict_set(pubKey, 256, key_pair1, pubKey2);
+    pubKey = dict_set(pubKey, 256, key_pair1, pubKey3);
     slice key_pair4 = begin_cell().store_uint(4,256).end_cell().begin_parse();
-    pubKey = dict_set(pubKey, 256, key_pair1, pubKey2);
+    pubKey = dict_set(pubKey, 256, key_pair1, pubKey4);
 }
 
 ;; tuple empty_tuple();
@@ -164,28 +164,28 @@
     return c.begin_parse();
 }
 
-() store_key(cell publicKey) impure {
-    (
-        cell vote,
-        cell minBlock,
-        cell minTxn,
-        cell minBatch,
-        cell signedCoherentCluster,
-        cell coherentCluster,
-        cell orgin,
-        cell pubKey,
-        slice supraSValueFeed
-    ) = load_data();
-    slice c = publicKey.begin_parse();
-    slice key_1 = c~load_msg_addr();
-    slice key_2 = c~load_msg_addr();
-    slice key_3 = c~load_msg_addr();
-    slice key_4 = c~load_msg_addr();
-    pubKey = idict_set(pubKey,256,1,key_1);
-    pubKey = idict_set(pubKey,256,2,key_2);
-    pubKey = idict_set(pubKey,256,3,key_3);
-    pubKey = idict_set(pubKey,256,4,key_4);
-}
+;; () store_key(cell publicKey) impure {
+;;     (
+;;         cell vote,
+;;         cell minBlock,
+;;         cell minTxn,
+;;         cell minBatch,
+;;         cell signedCoherentCluster,
+;;         cell coherentCluster,
+;;         cell orgin,
+;;         cell pubKey,
+;;         slice supraSValueFeed
+;;     ) = load_data();
+;;     slice c = publicKey.begin_parse();
+;;     slice key_1 = c~load_msg_addr();
+;;     slice key_2 = c~load_msg_addr();
+;;     slice key_3 = c~load_msg_addr();
+;;     slice key_4 = c~load_msg_addr();
+;;     pubKey = idict_set(pubKey,256,1,key_1);
+;;     pubKey = idict_set(pubKey,256,2,key_2);
+;;     pubKey = idict_set(pubKey,256,3,key_3);
+;;     pubKey = idict_set(pubKey,256,4,key_4);
+;; }
 
 () updatePublicKey(cell _publicKey) impure {
        (
@@ -223,11 +223,6 @@
    int result = check_signature(message, signature, public_key);
    return result;
 }
-
-;; () requireHashVerified_V2(int message, slice signature, int public_key) impure {
-
-;; }
-
 
 () requireVoteVerified(cell vote, slice signature, int public_key) impure {
    (
